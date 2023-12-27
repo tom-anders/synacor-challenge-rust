@@ -1,5 +1,5 @@
 use crate::opcode::*;
-use std::io::{BufRead, Write};
+use std::io::Write;
 
 const NUM_ADDRESSES: u16 = 2 << 14;
 const NUM_REGISTERS: u16 = 8;
@@ -103,6 +103,24 @@ impl Vm {
                     } else {
                         0
                     }
+                }
+                Opcode::Gt { write_to, lhs, rhs } => {
+                    *self.reg_mut(write_to)? = if self.lit_or_reg(lhs)? > self.lit_or_reg(rhs)? {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                Opcode::And { write_to, lhs, rhs } => {
+                    *self.reg_mut(write_to)? =
+                        (self.lit_or_reg(lhs)? & self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
+                }
+                Opcode::Or { write_to, lhs, rhs } => {
+                    *self.reg_mut(write_to)? =
+                        (self.lit_or_reg(lhs)? | self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
+                }
+                Opcode::Not { write_to, val } => {
+                    *self.reg_mut(write_to)? = (!self.lit_or_reg(val)?) % NUM_ADDRESSES;
                 }
                 Opcode::Push { val } => {
                     self.stack.push(self.lit_or_reg(val)?);
