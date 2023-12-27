@@ -93,9 +93,18 @@ impl Vm {
                 Opcode::Set { reg, val } => {
                     *self.reg_mut(reg)? = self.lit_or_reg(val)?;
                 }
+                Opcode::Mod { write_to, lhs, rhs } => {
+                    *self.reg_mut(write_to)? =
+                        (self.lit_or_reg(lhs)? % self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
+                }
                 Opcode::Add { write_to, lhs, rhs } => {
                     *self.reg_mut(write_to)? =
                         (self.lit_or_reg(lhs)? + self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
+                }
+                Opcode::Mult { write_to, lhs, rhs } => {
+                    *self.reg_mut(write_to)? =
+                        ((self.lit_or_reg(lhs)? as usize * self.lit_or_reg(rhs)? as usize)
+                            % (NUM_ADDRESSES as usize)) as u16;
                 }
                 Opcode::Eq { write_to, lhs, rhs } => {
                     *self.reg_mut(write_to)? = if self.lit_or_reg(lhs)? == self.lit_or_reg(rhs)? {
@@ -127,6 +136,10 @@ impl Vm {
                 }
                 Opcode::Pop { write_to } => {
                     *self.reg_mut(write_to)? = self.stack.pop().ok_or(Error::StackUnderflow)?;
+                }
+                Opcode::Call { addr } => {
+                    self.stack.push(self.ip as u16);
+                    self.ip = self.lit_or_reg(addr)? as usize;
                 }
                 Opcode::Noop => (),
                 _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),
