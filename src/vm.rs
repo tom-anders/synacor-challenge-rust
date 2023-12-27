@@ -38,6 +38,7 @@ impl Vm {
 
             match opcode {
                 Opcode::Halt => return Ok(()),
+                Opcode::Jmp { to } => self.ip = to as usize,
                 Opcode::Out { val } => {
                     output
                         .write_all(&[val.try_into().map_err(|_| Error::InvalidOutput(val))?])?;

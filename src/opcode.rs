@@ -57,6 +57,7 @@ impl TryFrom<&[u16]> for Opcode {
             Out => Opcode::Out { val: read_word()? },
             Halt => Opcode::Halt,
             Noop => Opcode::Noop,
+            Jmp => Opcode::Jmp { to: read_word()? },
             _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),
         })
     }
