@@ -52,13 +52,36 @@ impl TryFrom<&[u16]> for Opcode {
 
         let opcode = OpcodeDiscriminants::try_from(read_word()?)?;
 
+        macro_rules! unpack_opcode {
+            ($code:ident, $($fields:ident),*) => {
+                Opcode::$code { $( $fields: read_word()? ),* }
+            };
+        }
+
         use OpcodeDiscriminants::*;
         Ok(match opcode {
-            Out => Opcode::Out { val: read_word()? },
             Halt => Opcode::Halt,
+            Set => unpack_opcode!(Set, reg, val),
+            Push => unpack_opcode!(Push, val),
+            Pop => unpack_opcode!(Pop, write_to),
+            Eq => unpack_opcode!(Eq, write_to, lhs, rhs),
+            Gt => unpack_opcode!(Gt, write_to, lhs, rhs),
+            Jmp => unpack_opcode!(Jmp, to),
+            JmpIfTrue => unpack_opcode!(JmpIfTrue, cond, to),
+            JmpIfFalse => unpack_opcode!(JmpIfFalse, cond, to),
+            Add => unpack_opcode!(Add, write_to, lhs, rhs),
+            Mult => unpack_opcode!(Mult, write_to, lhs, rhs),
+            Mod => unpack_opcode!(Mod, write_to, lhs, rhs),
+            And => unpack_opcode!(And, write_to, lhs, rhs),
+            Or => unpack_opcode!(Or, write_to, lhs, rhs),
+            Not => unpack_opcode!(Not, write_to, val),
+            ReadMem => unpack_opcode!(ReadMem, write_to, addr),
+            WriteMem => unpack_opcode!(WriteMem, addr, val),
+            Call => unpack_opcode!(Call, addr),
+            Ret => Opcode::Ret,
+            Out => unpack_opcode!(Out, val),
+            In => unpack_opcode!(In, write_to),
             Noop => Opcode::Noop,
-            Jmp => Opcode::Jmp { to: read_word()? },
-            _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),
         })
     }
 }
