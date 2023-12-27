@@ -22,6 +22,8 @@ pub enum Error {
     InvalidOutput(u16),
     #[error("Invalid value: {0}")]
     InvalidValue(u16),
+    #[error("Invalid register address: {0}")]
+    InvalidRegister(u16),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -36,7 +38,7 @@ impl Vm {
         }
     }
 
-    fn resolve(&self, val: u16) -> Result<u16> {
+    fn lit_or_reg(&self, val: u16) -> Result<u16> {
         if (val as usize) < NUM_ADDRESSES {
             Ok(val)
         } else if (val as usize) < NUM_ADDRESSES + NUM_REGISTERS {
@@ -44,6 +46,11 @@ impl Vm {
         } else {
             Err(Error::InvalidValue(val))
         }
+    }
+
+    fn reg_mut(&mut self, val: u16) -> Result<&mut u16> {
+        self.registers.get_mut(val as usize - NUM_ADDRESSES)
+            .ok_or(Error::InvalidRegister(val))
     }
 
     pub fn run(&mut self, program: &[u16], output: &mut impl Write) -> Result<()> {
@@ -57,12 +64,12 @@ impl Vm {
                 Opcode::Halt => return Ok(()),
                 Opcode::Jmp { to } => self.ip = to as usize,
                 Opcode::JmpIfTrue { cond, to } => {
-                    if self.resolve(cond)? != 0 {
+                    if self.lit_or_reg(cond)? != 0 {
                         self.ip = to as usize;
                     }
                 }
                 Opcode::JmpIfFalse { cond, to } => {
-                    if self.resolve(cond)? == 0 {
+                    if self.lit_or_reg(cond)? == 0 {
                         self.ip = to as usize;
                     }
                 }
@@ -70,7 +77,9 @@ impl Vm {
                     output
                         .write_all(&[val.try_into().map_err(|_| Error::InvalidOutput(val))?])?;
                 }
-
+                Opcode::Set { reg, val } => {
+                    *self.reg_mut(reg)? = self.lit_or_reg(val)?;
+                }
                 Opcode::Noop => (),
                 _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),
             };
