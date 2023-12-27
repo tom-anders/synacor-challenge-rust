@@ -1,9 +1,11 @@
 use crate::opcode::*;
 use std::io::{BufRead, Write};
 
+const MAX_ADDRESS: usize = 2 << 14;
+
 #[derive(Debug, Clone)]
 pub struct Vm {
-    memory: [u16; 2_usize.pow(15)],
+    memory: [u16; MAX_ADDRESS],
     registers: [u16; 8],
     stack: Vec<u16>,
     ip: usize,
@@ -24,7 +26,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Vm {
     pub fn new() -> Self {
         Self {
-            memory: [0; 2_usize.pow(15)],
+            memory: [0; MAX_ADDRESS],
             registers: [0; 8],
             stack: Vec::new(),
             ip: 0,
