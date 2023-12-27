@@ -1,13 +1,13 @@
 use crate::opcode::*;
 use std::io::{BufRead, Write};
 
-const NUM_ADDRESSES: usize = 2 << 14;
-const NUM_REGISTERS: usize = 8;
+const NUM_ADDRESSES: u16 = 2 << 14;
+const NUM_REGISTERS: u16 = 8;
 
 #[derive(Debug, Clone)]
 pub struct Vm {
-    memory: [u16; NUM_ADDRESSES],
-    registers: [u16; NUM_REGISTERS],
+    memory: [u16; NUM_ADDRESSES as usize],
+    registers: [u16; NUM_REGISTERS as usize],
     stack: Vec<u16>,
     ip: usize,
 }
@@ -24,6 +24,8 @@ pub enum Error {
     InvalidValue(u16),
     #[error("Invalid register address: {0}")]
     InvalidRegister(u16),
+    #[error("Stack underflow!")]
+    StackUnderflow,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -31,25 +33,26 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Vm {
     pub fn new() -> Self {
         Self {
-            memory: [0; NUM_ADDRESSES],
-            registers: [0; NUM_REGISTERS],
+            memory: [0; NUM_ADDRESSES as usize],
+            registers: [0; NUM_REGISTERS as usize],
             stack: Vec::new(),
             ip: 0,
         }
     }
 
     fn lit_or_reg(&self, val: u16) -> Result<u16> {
-        if (val as usize) < NUM_ADDRESSES {
+        if val < NUM_ADDRESSES {
             Ok(val)
-        } else if (val as usize) < NUM_ADDRESSES + NUM_REGISTERS {
-            Ok(self.registers[val as usize - NUM_ADDRESSES])
+        } else if val < NUM_ADDRESSES + NUM_REGISTERS {
+            Ok(self.registers[(val - NUM_ADDRESSES) as usize])
         } else {
             Err(Error::InvalidValue(val))
         }
     }
 
     fn reg_mut(&mut self, val: u16) -> Result<&mut u16> {
-        self.registers.get_mut(val as usize - NUM_ADDRESSES)
+        self.registers
+            .get_mut((val - NUM_ADDRESSES) as usize)
             .ok_or(Error::InvalidRegister(val))
     }
 
@@ -79,6 +82,24 @@ impl Vm {
                 }
                 Opcode::Set { reg, val } => {
                     *self.reg_mut(reg)? = self.lit_or_reg(val)?;
+                }
+                Opcode::Add { write_to, lhs, rhs } => {
+                    *self.reg_mut(write_to)? =
+                        (self.lit_or_reg(lhs)? + self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
+                }
+                Opcode::Eq { write_to, lhs, rhs } => {
+                    *self.reg_mut(write_to)? = if self.lit_or_reg(lhs)? == self.lit_or_reg(rhs)? {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                Opcode::Push { val } => {
+                    self.stack.push(self.lit_or_reg(val)?);
+                }
+                Opcode::Pop { write_to } => {
+                    *self.reg_mut(write_to)? =
+                        self.stack.pop().ok_or(Error::StackUnderflow)?;
                 }
                 Opcode::Noop => (),
                 _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),
