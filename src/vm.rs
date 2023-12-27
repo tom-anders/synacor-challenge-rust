@@ -14,6 +14,8 @@ pub struct Vm {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Program is too big to fit into memory")]
+    ProgramTooBig,
     #[error(transparent)]
     ReadOpcode(#[from] ReadOpcodeError),
     #[error(transparent)]
@@ -56,9 +58,17 @@ impl Vm {
             .ok_or(Error::InvalidRegister(val))
     }
 
-    pub fn run(&mut self, program: &[u16], output: &mut impl Write) -> Result<()> {
+    pub fn load_program(&mut self, program: &[u16]) -> Result<()> {
+        if program.len() > self.memory.len() {
+            return Err(Error::ProgramTooBig);
+        }
+        self.memory[..program.len()].copy_from_slice(program);
+        Ok(())
+    }
+
+    pub fn run(&mut self, output: &mut impl Write) -> Result<()> {
         loop {
-            let opcode = Opcode::try_from(&program[self.ip..])?;
+            let opcode = Opcode::try_from(&self.memory[self.ip..])?;
             self.ip += opcode.num_words();
 
             log::trace!("Next opode: {opcode:?}, ip: {}", self.ip);
@@ -98,8 +108,7 @@ impl Vm {
                     self.stack.push(self.lit_or_reg(val)?);
                 }
                 Opcode::Pop { write_to } => {
-                    *self.reg_mut(write_to)? =
-                        self.stack.pop().ok_or(Error::StackUnderflow)?;
+                    *self.reg_mut(write_to)? = self.stack.pop().ok_or(Error::StackUnderflow)?;
                 }
                 Opcode::Noop => (),
                 _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),

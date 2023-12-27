@@ -1,8 +1,8 @@
 use itertools::Itertools;
 use vm::Vm;
 
-mod vm;
 mod opcode;
+mod vm;
 
 fn main() -> vm::Result<()> {
     env_logger::init();
@@ -13,5 +13,7 @@ fn main() -> vm::Result<()> {
         .collect_vec();
 
     let mut vm = Vm::new();
-    vm.run(&challenge, &mut std::io::stdout())
+    vm.load_program(&challenge)?;
+    vm.run(&mut std::io::stdout())?;
+    Ok(())
 }
