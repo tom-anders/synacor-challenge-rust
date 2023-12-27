@@ -1,0 +1,26 @@
+#[derive(Debug, Clone, Copy, strum::EnumDiscriminants)]
+#[strum_discriminants(repr(u16), derive(num_enum::TryFromPrimitive))]
+enum Opcode {
+    Halt,
+    Set { reg: u16, val: u16 },
+    Push { val: u16 },
+    Pop { write_to: u16 },
+    Eq { write_to: u16, lhs: u16, rhs: u16 },
+    Gt { write_to: u16, lhs: u16, rhs: u16 },
+    Jmp { to: u16 },
+    JmpIfTrue { cond: u16, to: u16 },
+    JmpIfFalse { cond: u16, to: u16 },
+    Add { write_to: u16, lhs: u16, rhs: u16 },
+    Mult { write_to: u16, lhs: u16, rhs: u16 },
+    Mod { write_to: u16, lhs: u16, rhs: u16 },
+    And { write_to: u16, lhs: u16, rhs: u16 },
+    Or { write_to: u16, lhs: u16, rhs: u16 },
+    Not { write_to: u16, val: u16 },
+    ReadMem { write_to: u16, addr: u16 },
+    WriteMem { addr: u16, val: u16 },
+    Call { addr: u16 },
+    Ret,
+    Out { val: u16 },
+    In { write_to: u16 },
+    Noop,
+}
