@@ -2,12 +2,12 @@ use crate::opcode::*;
 use std::io::Write;
 
 const NUM_ADDRESSES: u16 = 2 << 14;
+const FIRST_REGISTER: u16 = NUM_ADDRESSES;
 const NUM_REGISTERS: u16 = 8;
 
 #[derive(Debug, Clone)]
 pub struct Vm {
-    memory: [u16; NUM_ADDRESSES as usize],
-    registers: [u16; NUM_REGISTERS as usize],
+    memory: [u16; (NUM_ADDRESSES + NUM_REGISTERS) as usize],
     stack: Vec<u16>,
     ip: usize,
 }
@@ -28,6 +28,8 @@ pub enum Error {
     InvalidRegister(u16),
     #[error("Stack underflow!")]
     StackUnderflow,
+    #[error("Invalid memory address: {0}")]
+    InvalidAddress(u16),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -35,27 +37,44 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Vm {
     pub fn new() -> Self {
         Self {
-            memory: [0; NUM_ADDRESSES as usize],
-            registers: [0; NUM_REGISTERS as usize],
+            memory: std::array::from_fn(|_| 0),
             stack: Vec::new(),
             ip: 0,
         }
     }
 
     fn lit_or_reg(&self, val: u16) -> Result<u16> {
-        if val < NUM_ADDRESSES {
+        if val < FIRST_REGISTER {
             Ok(val)
-        } else if val < NUM_ADDRESSES + NUM_REGISTERS {
-            Ok(self.registers[(val - NUM_ADDRESSES) as usize])
         } else {
-            Err(Error::InvalidValue(val))
+            self.memory
+                .get(val as usize)
+                .copied()
+                .ok_or(Error::InvalidValue(val))
         }
     }
 
+    fn mem_or_reg_mut(&mut self, addr: u16) -> Result<&mut u16> {
+        self.memory
+            .get_mut(addr as usize)
+            .ok_or(Error::InvalidAddress(addr))
+    }
+
+    fn mem_or_reg(&self, addr: u16) -> Result<u16> {
+        self.memory
+            .get(addr as usize)
+            .copied()
+            .ok_or(Error::InvalidAddress(addr))
+    }
+
     fn reg_mut(&mut self, val: u16) -> Result<&mut u16> {
-        self.registers
-            .get_mut((val - NUM_ADDRESSES) as usize)
-            .ok_or(Error::InvalidRegister(val))
+        if val < FIRST_REGISTER {
+            Err(Error::InvalidRegister(val))
+        } else {
+            self.memory
+                .get_mut((val) as usize)
+                .ok_or(Error::InvalidRegister(val))
+        }
     }
 
     pub fn load_program(&mut self, program: &[u16]) -> Result<()> {
@@ -69,9 +88,10 @@ impl Vm {
     pub fn run(&mut self, output: &mut impl Write) -> Result<()> {
         loop {
             let opcode = Opcode::try_from(&self.memory[self.ip..])?;
-            self.ip += opcode.num_words();
 
-            log::trace!("Next opode: {opcode:?}, ip: {}", self.ip);
+            log::trace!("{:4}: {opcode:?}", self.ip);
+
+            self.ip += opcode.num_words();
 
             match opcode {
                 Opcode::Halt => return Ok(()),
@@ -87,8 +107,9 @@ impl Vm {
                     }
                 }
                 Opcode::Out { val } => {
+                    let out = self.lit_or_reg(val)?;
                     output
-                        .write_all(&[val.try_into().map_err(|_| Error::InvalidOutput(val))?])?;
+                        .write_all(&[out.try_into().map_err(|_| Error::InvalidOutput(val))?])?;
                 }
                 Opcode::Set { reg, val } => {
                     *self.reg_mut(reg)? = self.lit_or_reg(val)?;
@@ -141,6 +162,16 @@ impl Vm {
                     self.stack.push(self.ip as u16);
                     self.ip = self.lit_or_reg(addr)? as usize;
                 }
+                Opcode::ReadMem { write_to, addr } => {
+                    *self.reg_mut(write_to)? = self.memory[self.lit_or_reg(addr)? as usize];
+                }
+                Opcode::WriteMem { addr, val } => {
+                    self.memory[self.lit_or_reg(addr)? as usize] = self.lit_or_reg(val)?;
+                }
+                Opcode::Ret => match self.stack.pop() {
+                    None => return Ok(()),
+                    Some(jump_to) => self.ip = jump_to as usize,
+                },
                 Opcode::Noop => (),
                 _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),
             };
