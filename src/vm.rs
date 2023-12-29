@@ -1,5 +1,8 @@
 use crate::opcode::*;
-use std::io::Write;
+use std::{
+    io::Write,
+    ops::{Add, BitAnd, BitOr, Mul, Not, Rem},
+};
 
 const NUM_ADDRESSES: u16 = 2 << 14;
 const FIRST_REGISTER: u16 = NUM_ADDRESSES;
@@ -85,6 +88,15 @@ impl Vm {
         Ok(())
     }
 
+    fn bin_op<Op>(&mut self, bin_op: BinOp, op: Op) -> Result<()>
+    where
+        Op: Fn(u16, u16) -> u16,
+    {
+        *self.reg_mut(bin_op.write_to)? =
+            op(self.lit_or_reg(bin_op.lhs)?, self.lit_or_reg(bin_op.rhs)?) % NUM_ADDRESSES;
+        Ok(())
+    }
+
     pub fn run(&mut self, output: &mut impl Write) -> Result<()> {
         loop {
             let opcode = Opcode::try_from(&self.memory[self.ip..])?;
@@ -114,41 +126,21 @@ impl Vm {
                 Opcode::Set { reg, val } => {
                     *self.reg_mut(reg)? = self.lit_or_reg(val)?;
                 }
-                Opcode::Mod { write_to, lhs, rhs } => {
-                    *self.reg_mut(write_to)? =
-                        (self.lit_or_reg(lhs)? % self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
+
+                Opcode::Mod(bin_op) => self.bin_op(bin_op, Rem::rem)?,
+                Opcode::Add(bin_op) => self.bin_op(bin_op, std::ops::Add::add)?,
+                Opcode::Mult(bin_op) => self.bin_op(bin_op, std::ops::Mul::mul)?,
+                Opcode::And(bin_op) => self.bin_op(bin_op, std::ops::BitAnd::bitand)?,
+                Opcode::Or(bin_op) => self.bin_op(bin_op, std::ops::BitOr::bitor)?,
+
+                Opcode::Eq(bin_op) => {
+                    self.bin_op(bin_op, |lhs, rhs| if lhs == rhs { 1 } else { 0 })?
                 }
-                Opcode::Add { write_to, lhs, rhs } => {
-                    *self.reg_mut(write_to)? =
-                        (self.lit_or_reg(lhs)? + self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
+
+                Opcode::Gt(bin_op) => {
+                    self.bin_op(bin_op, |lhs, rhs| if lhs > rhs { 1 } else { 0 })?
                 }
-                Opcode::Mult { write_to, lhs, rhs } => {
-                    *self.reg_mut(write_to)? =
-                        ((self.lit_or_reg(lhs)? as usize * self.lit_or_reg(rhs)? as usize)
-                            % (NUM_ADDRESSES as usize)) as u16;
-                }
-                Opcode::Eq { write_to, lhs, rhs } => {
-                    *self.reg_mut(write_to)? = if self.lit_or_reg(lhs)? == self.lit_or_reg(rhs)? {
-                        1
-                    } else {
-                        0
-                    }
-                }
-                Opcode::Gt { write_to, lhs, rhs } => {
-                    *self.reg_mut(write_to)? = if self.lit_or_reg(lhs)? > self.lit_or_reg(rhs)? {
-                        1
-                    } else {
-                        0
-                    }
-                }
-                Opcode::And { write_to, lhs, rhs } => {
-                    *self.reg_mut(write_to)? =
-                        (self.lit_or_reg(lhs)? & self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
-                }
-                Opcode::Or { write_to, lhs, rhs } => {
-                    *self.reg_mut(write_to)? =
-                        (self.lit_or_reg(lhs)? | self.lit_or_reg(rhs)?) % NUM_ADDRESSES;
-                }
+
                 Opcode::Not { write_to, val } => {
                     *self.reg_mut(write_to)? = (!self.lit_or_reg(val)?) % NUM_ADDRESSES;
                 }

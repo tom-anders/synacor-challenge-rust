@@ -1,4 +1,9 @@
-use std::io::{BufRead, Cursor, Read};
+#[derive(Debug, Clone, Copy)]
+pub struct BinOp {
+    pub write_to: u16,
+    pub lhs: u16,
+    pub rhs: u16,
+}
 
 #[derive(Debug, Clone, Copy, strum::EnumDiscriminants)]
 #[strum_discriminants(repr(u16), derive(num_enum::TryFromPrimitive))]
@@ -7,16 +12,16 @@ pub enum Opcode {
     Set { reg: u16, val: u16 },
     Push { val: u16 },
     Pop { write_to: u16 },
-    Eq { write_to: u16, lhs: u16, rhs: u16 },
-    Gt { write_to: u16, lhs: u16, rhs: u16 },
+    Eq(BinOp),
+    Gt(BinOp),
     Jmp { to: u16 },
     JmpIfTrue { cond: u16, to: u16 },
     JmpIfFalse { cond: u16, to: u16 },
-    Add { write_to: u16, lhs: u16, rhs: u16 },
-    Mult { write_to: u16, lhs: u16, rhs: u16 },
-    Mod { write_to: u16, lhs: u16, rhs: u16 },
-    And { write_to: u16, lhs: u16, rhs: u16 },
-    Or { write_to: u16, lhs: u16, rhs: u16 },
+    Add(BinOp),
+    Mult(BinOp),
+    Mod(BinOp),
+    And(BinOp),
+    Or(BinOp),
     Not { write_to: u16, val: u16 },
     ReadMem { write_to: u16, addr: u16 },
     WriteMem { addr: u16, val: u16 },
@@ -58,22 +63,28 @@ impl TryFrom<&[u16]> for Opcode {
             };
         }
 
+        macro_rules! unpack_binop {
+            ($code:ident) => {
+                Opcode::$code(BinOp { write_to: read_word()?, lhs: read_word()?, rhs: read_word()? })
+            };
+        }
+
         use OpcodeDiscriminants::*;
         Ok(match opcode {
             Halt => Opcode::Halt,
             Set => unpack_opcode!(Set, reg, val),
             Push => unpack_opcode!(Push, val),
             Pop => unpack_opcode!(Pop, write_to),
-            Eq => unpack_opcode!(Eq, write_to, lhs, rhs),
-            Gt => unpack_opcode!(Gt, write_to, lhs, rhs),
+            Eq => unpack_binop!(Eq),
+            Gt => unpack_binop!(Gt),
             Jmp => unpack_opcode!(Jmp, to),
             JmpIfTrue => unpack_opcode!(JmpIfTrue, cond, to),
             JmpIfFalse => unpack_opcode!(JmpIfFalse, cond, to),
-            Add => unpack_opcode!(Add, write_to, lhs, rhs),
-            Mult => unpack_opcode!(Mult, write_to, lhs, rhs),
-            Mod => unpack_opcode!(Mod, write_to, lhs, rhs),
-            And => unpack_opcode!(And, write_to, lhs, rhs),
-            Or => unpack_opcode!(Or, write_to, lhs, rhs),
+            Add => unpack_binop!(Add),
+            Mult => unpack_binop!(Mult),
+            Mod => unpack_binop!(Mod),
+            And => unpack_binop!(And),
+            Or => unpack_binop!(Or),
             Not => unpack_opcode!(Not, write_to, val),
             ReadMem => unpack_opcode!(ReadMem, write_to, addr),
             WriteMem => unpack_opcode!(WriteMem, addr, val),
