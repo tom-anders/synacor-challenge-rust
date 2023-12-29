@@ -1,3 +1,5 @@
+use std::io::BufReader;
+
 use itertools::Itertools;
 use vm::Vm;
 
@@ -14,6 +16,9 @@ fn main() -> vm::Result<()> {
 
     let mut vm = Vm::new();
     vm.load_program(&challenge)?;
-    vm.run(&mut std::io::stdout())?;
+    vm.run(
+        &mut BufReader::new(&mut std::io::stdin()),
+        &mut std::io::stdout(),
+    )?;
     Ok(())
 }

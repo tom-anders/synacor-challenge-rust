@@ -1,7 +1,7 @@
 use crate::opcode::*;
 use std::{
-    io::Write,
-    ops::{Add, BitAnd, BitOr, Mul, Not, Rem},
+    io::{BufRead, Write},
+    ops::Rem,
 };
 
 const NUM_ADDRESSES: u16 = 2 << 14;
@@ -13,6 +13,7 @@ pub struct Vm {
     memory: [u16; (NUM_ADDRESSES + NUM_REGISTERS) as usize],
     stack: Vec<u16>,
     ip: usize,
+    pending_input: Vec<u8>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -43,6 +44,7 @@ impl Vm {
             memory: std::array::from_fn(|_| 0),
             stack: Vec::new(),
             ip: 0,
+            pending_input: Vec::new(),
         }
     }
 
@@ -79,12 +81,14 @@ impl Vm {
     where
         Op: Fn(u16, u16) -> u16,
     {
-        *self.reg_mut(bin_op.write_to)? =
-            op(self.resolve_value(bin_op.lhs)?, self.resolve_value(bin_op.rhs)?) % NUM_ADDRESSES;
+        *self.reg_mut(bin_op.write_to)? = op(
+            self.resolve_value(bin_op.lhs)?,
+            self.resolve_value(bin_op.rhs)?,
+        ) % NUM_ADDRESSES;
         Ok(())
     }
 
-    pub fn run(&mut self, output: &mut impl Write) -> Result<()> {
+    pub fn run(&mut self, input: &mut impl BufRead, output: &mut impl Write) -> Result<()> {
         loop {
             let opcode = Opcode::try_from(&self.memory[self.ip..])?;
 
@@ -109,6 +113,15 @@ impl Vm {
                     let out = self.resolve_value(val)?;
                     output
                         .write_all(&[out.try_into().map_err(|_| Error::InvalidOutput(val))?])?;
+                }
+                Opcode::In { write_to } => {
+                    if self.pending_input.is_empty() {
+                        let mut line = String::new();
+                        input.read_line(&mut line)?;
+                        self.pending_input = line.chars().map(|c| c as u8).rev().collect();
+                    }
+                    *self.reg_mut(write_to)?
+                        = self.pending_input.pop().unwrap() as u16;
                 }
                 Opcode::Set { reg, val } => {
                     *self.reg_mut(reg)? = self.resolve_value(val)?;
@@ -159,7 +172,6 @@ impl Vm {
                     Some(jump_to) => self.ip = jump_to as usize,
                 },
                 Opcode::Noop => (),
-                _ => unimplemented!("Opcode {opcode:?} is not yet implemented!"),
             };
         }
     }
