@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr, io::Write};
 
 use crate::vm::{Result, Vm};
 use itertools::Itertools;
@@ -40,41 +40,38 @@ pub struct Room {
     pub exits: Vec<Exit>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Clone, parse_display::Display)]
+pub enum Command<'a> {
+    #[display("take {0}")]
+    Take(&'a str),
+    #[display("look {0}")]
+    Look(&'a str),
+    #[display("use {0}")]
+    Use(&'a str),
+    #[display("inv")]
+    Inv,
+}
+
 #[derive(Debug, derive_more::Constructor)]
 pub struct Rpg<'a> {
     vm: &'a mut Vm,
 }
 
 impl Rpg<'_> {
-    pub fn use_(&mut self, item: impl ToString) -> Result<()> {
-        let item = item.to_string();
-        self.vm.run_commands(
-            [
-                format!("use {item}").as_str(),
-            ],
-            &mut std::io::stdout(),
-        )?;
-        Ok(())
-    }
-
-    pub fn take(&mut self, item: impl ToString) -> Result<()> {
-        let item = item.to_string();
-        self.vm.run_commands(
-            [
-                format!("take {item}").as_str(),
-                format!("look {item}").as_str(),
-            ],
-            &mut std::io::stdout(),
-        )?;
+    pub fn command(&mut self, command: Command) -> Result<()> {
+        self.vm
+            .run_commands([command.to_string().as_str()], &mut std::io::stdout())?;
         Ok(())
     }
 
     pub fn go(&mut self, exit: Exit) -> Result<Room> {
-        let mut room = Vec::new();
+        let mut output = Vec::new();
         self.vm
-            .run_commands([format!("go {exit}").as_str()], &mut room)?;
+            .run_commands([format!("go {exit}").as_str()], &mut output)?;
+        std::io::stdout().write_all(&output)?;
 
-        let room_str: String = room.iter().map(|c| *c as char).collect();
+        let room_str: String = output.iter().map(|c| *c as char).collect();
 
         let room_lines = room_str
             .lines()

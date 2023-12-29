@@ -9,7 +9,7 @@ use itertools::Itertools;
 use log::info;
 use vm::Vm;
 
-use crate::{maze::Maze, rpg::Rpg, vm::ExitReason};
+use crate::{maze::Maze, rpg::{Rpg, Command, Direction}, vm::ExitReason};
 
 fn main() -> vm::Result<()> {
     env_logger::init();
@@ -51,8 +51,25 @@ fn main() -> vm::Result<()> {
         let mut maze = Maze::new(&mut rpg);
         maze.random_moves_until(|room| room.items.first().is_some_and(|item| item == "can"))?;
     }
-    rpg.take("can")?;
-    rpg.use_("can")?;
+
+    rpg.command(Command::Take("can"))?;
+    rpg.command(Command::Look("can"))?;
+    rpg.command(Command::Use("can"))?;
+
+    rpg.command(Command::Look("lantern"))?;
+
+    rpg.command(Command::Use("lantern"))?;
+
+    rpg.go(Direction::West.into())?;
+    rpg.go("ladder".to_string().into())?;
+    rpg.go("darkness".to_string().into())?;
+    rpg.go("continue".to_string().into())?;
+    rpg.go(Direction::West.into())?;
+    rpg.go(Direction::West.into())?;
+    rpg.go(Direction::West.into())?;
+    rpg.go(Direction::West.into())?;
+
+    vm.run_interactive()?;
 
     Ok(())
 }
