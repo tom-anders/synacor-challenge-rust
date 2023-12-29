@@ -27,6 +27,8 @@ fn main() -> vm::Result<()> {
         "go east",
         "take empty lantern",
         "go west",
+        "go west",
+        "go passage",
     ]
     .into_iter()
     .interleave_shortest(std::iter::repeat("\n"))
