@@ -1,6 +1,8 @@
+use itertools::Itertools;
+
 use crate::opcode::*;
 use std::{
-    io::{BufRead, Write},
+    io::{BufRead, BufReader, Read, Write},
     ops::Rem,
 };
 
@@ -34,6 +36,12 @@ pub enum Error {
     StackUnderflow,
     #[error("Invalid memory address: {0}")]
     InvalidAddress(u16),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ExitReason {
+    Halted,
+    NoMoreInput,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -88,7 +96,24 @@ impl Vm {
         Ok(())
     }
 
-    pub fn run(&mut self, input: &mut impl BufRead, output: &mut impl Write) -> Result<()> {
+    pub fn run_commands(
+        &mut self,
+        commands: impl IntoIterator<Item = &'static str>,
+        output: &mut impl Write,
+    ) -> Result<ExitReason> {
+        let input: String = commands
+            .into_iter()
+            .interleave_shortest(std::iter::repeat("\n"))
+            .collect();
+        self.run(&mut input.as_bytes(), output)
+    }
+
+    pub fn run_interactive(&mut self) -> Result<ExitReason> {
+        self.run(&mut std::io::stdin(), &mut std::io::stdout())
+    }
+
+    pub fn run(&mut self, input: &mut impl Read, output: &mut impl Write) -> Result<ExitReason> {
+        let mut input = BufReader::new(input);
         loop {
             let opcode = Opcode::try_from(&self.memory[self.ip..])?;
 
@@ -97,7 +122,7 @@ impl Vm {
             self.ip += opcode.num_words();
 
             match opcode {
-                Opcode::Halt => return Ok(()),
+                Opcode::Halt => return Ok(ExitReason::Halted),
                 Opcode::Jmp { to } => self.ip = to as usize,
                 Opcode::JmpIfTrue { cond, to } => {
                     if self.resolve_value(cond)? != 0 {
@@ -117,12 +142,14 @@ impl Vm {
                 Opcode::In { write_to } => {
                     if self.pending_input.is_empty() {
                         let mut line = String::new();
-                        input.read_line(&mut line)?;
+                        if input.read_line(&mut line)? == 0 {
+                            self.ip -= opcode.num_words();
+                            return Ok(ExitReason::NoMoreInput);
+                        }
                         print!("> {line}");
                         self.pending_input = line.chars().map(|c| c as u8).rev().collect();
                     }
-                    *self.reg_mut(write_to)?
-                        = self.pending_input.pop().unwrap() as u16;
+                    *self.reg_mut(write_to)? = self.pending_input.pop().unwrap() as u16;
                 }
                 Opcode::Set { reg, val } => {
                     *self.reg_mut(reg)? = self.resolve_value(val)?;
@@ -169,7 +196,7 @@ impl Vm {
                         .ok_or(Error::InvalidAddress(memory_addr))? = self.resolve_value(val)?;
                 }
                 Opcode::Ret => match self.stack.pop() {
-                    None => return Ok(()),
+                    None => return Ok(ExitReason::Halted),
                     Some(jump_to) => self.ip = jump_to as usize,
                 },
                 Opcode::Noop => (),

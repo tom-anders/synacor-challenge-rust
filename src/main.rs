@@ -1,7 +1,9 @@
-use std::io::{BufReader, Read};
+use std::io::stdout;
 
 use itertools::Itertools;
 use vm::Vm;
+
+use crate::vm::ExitReason;
 
 mod opcode;
 mod vm;
@@ -17,26 +19,27 @@ fn main() -> vm::Result<()> {
     let mut vm = Vm::new();
     vm.load_program(&challenge)?;
 
-    let input: String = [
-        "go doorway",
-        "go north",
-        "go north",
-        "go bridge",
-        "go continue",
-        "go down",
-        "go east",
-        "take empty lantern",
-        "go west",
-        "go west",
-        "go passage",
-    ]
-    .into_iter()
-    .interleave_shortest(std::iter::repeat("\n"))
-    .collect();
+    assert_eq!(
+        vm.run_commands(
+            [
+                "go doorway",
+                "go north",
+                "go north",
+                "go bridge",
+                "go continue",
+                "go down",
+                "go east",
+                "take empty lantern",
+                "go west",
+                "go west",
+                "go passage",
+            ],
+            &mut stdout()
+        )?,
+        ExitReason::NoMoreInput
+    );
 
-    vm.run(
-        &mut BufReader::new(input.as_bytes()).chain(&mut BufReader::new(&mut std::io::stdin())),
-        &mut std::io::stdout(),
-    )?;
+    vm.run_interactive()?;
+
     Ok(())
 }
