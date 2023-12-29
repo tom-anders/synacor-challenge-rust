@@ -33,6 +33,7 @@ fn main() -> vm::Result<()> {
                 "go west",
                 "go west",
                 "go passage",
+                "go ladder",
             ],
             &mut stdout()
         )?,
