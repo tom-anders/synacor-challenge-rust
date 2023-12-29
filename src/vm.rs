@@ -142,10 +142,17 @@ impl Vm {
                     self.ip = self.lit_or_reg(addr)? as usize;
                 }
                 Opcode::ReadMem { write_to, addr } => {
-                    *self.reg_mut(write_to)? = self.memory[self.lit_or_reg(addr)? as usize];
+                    *self.reg_mut(write_to)? = *self
+                        .memory
+                        .get(self.lit_or_reg(addr)? as usize)
+                        .ok_or(Error::InvalidAddress(self.lit_or_reg(addr)?))?;
                 }
                 Opcode::WriteMem { addr, val } => {
-                    self.memory[self.lit_or_reg(addr)? as usize] = self.lit_or_reg(val)?;
+                    let memory_addr = self.lit_or_reg(addr)?;
+                    *self
+                        .memory
+                        .get_mut(memory_addr as usize)
+                        .ok_or(Error::InvalidAddress(memory_addr))? = self.lit_or_reg(val)?;
                 }
                 Opcode::Ret => match self.stack.pop() {
                     None => return Ok(()),
