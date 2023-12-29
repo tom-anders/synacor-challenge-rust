@@ -46,7 +46,7 @@ impl Vm {
         }
     }
 
-    fn lit_or_reg(&self, val: u16) -> Result<u16> {
+    fn resolve_value(&self, val: u16) -> Result<u16> {
         if val < FIRST_REGISTER {
             Ok(val)
         } else {
@@ -80,7 +80,7 @@ impl Vm {
         Op: Fn(u16, u16) -> u16,
     {
         *self.reg_mut(bin_op.write_to)? =
-            op(self.lit_or_reg(bin_op.lhs)?, self.lit_or_reg(bin_op.rhs)?) % NUM_ADDRESSES;
+            op(self.resolve_value(bin_op.lhs)?, self.resolve_value(bin_op.rhs)?) % NUM_ADDRESSES;
         Ok(())
     }
 
@@ -96,22 +96,22 @@ impl Vm {
                 Opcode::Halt => return Ok(()),
                 Opcode::Jmp { to } => self.ip = to as usize,
                 Opcode::JmpIfTrue { cond, to } => {
-                    if self.lit_or_reg(cond)? != 0 {
+                    if self.resolve_value(cond)? != 0 {
                         self.ip = to as usize;
                     }
                 }
                 Opcode::JmpIfFalse { cond, to } => {
-                    if self.lit_or_reg(cond)? == 0 {
+                    if self.resolve_value(cond)? == 0 {
                         self.ip = to as usize;
                     }
                 }
                 Opcode::Out { val } => {
-                    let out = self.lit_or_reg(val)?;
+                    let out = self.resolve_value(val)?;
                     output
                         .write_all(&[out.try_into().map_err(|_| Error::InvalidOutput(val))?])?;
                 }
                 Opcode::Set { reg, val } => {
-                    *self.reg_mut(reg)? = self.lit_or_reg(val)?;
+                    *self.reg_mut(reg)? = self.resolve_value(val)?;
                 }
 
                 Opcode::Mod(bin_op) => self.bin_op(bin_op, Rem::rem)?,
@@ -129,30 +129,30 @@ impl Vm {
                 }
 
                 Opcode::Not { write_to, val } => {
-                    *self.reg_mut(write_to)? = (!self.lit_or_reg(val)?) % NUM_ADDRESSES;
+                    *self.reg_mut(write_to)? = (!self.resolve_value(val)?) % NUM_ADDRESSES;
                 }
                 Opcode::Push { val } => {
-                    self.stack.push(self.lit_or_reg(val)?);
+                    self.stack.push(self.resolve_value(val)?);
                 }
                 Opcode::Pop { write_to } => {
                     *self.reg_mut(write_to)? = self.stack.pop().ok_or(Error::StackUnderflow)?;
                 }
                 Opcode::Call { addr } => {
                     self.stack.push(self.ip as u16);
-                    self.ip = self.lit_or_reg(addr)? as usize;
+                    self.ip = self.resolve_value(addr)? as usize;
                 }
                 Opcode::ReadMem { write_to, addr } => {
                     *self.reg_mut(write_to)? = *self
                         .memory
-                        .get(self.lit_or_reg(addr)? as usize)
-                        .ok_or(Error::InvalidAddress(self.lit_or_reg(addr)?))?;
+                        .get(self.resolve_value(addr)? as usize)
+                        .ok_or(Error::InvalidAddress(self.resolve_value(addr)?))?;
                 }
                 Opcode::WriteMem { addr, val } => {
-                    let memory_addr = self.lit_or_reg(addr)?;
+                    let memory_addr = self.resolve_value(addr)?;
                     *self
                         .memory
                         .get_mut(memory_addr as usize)
-                        .ok_or(Error::InvalidAddress(memory_addr))? = self.lit_or_reg(val)?;
+                        .ok_or(Error::InvalidAddress(memory_addr))? = self.resolve_value(val)?;
                 }
                 Opcode::Ret => match self.stack.pop() {
                     None => return Ok(()),
