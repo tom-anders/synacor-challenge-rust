@@ -57,19 +57,6 @@ impl Vm {
         }
     }
 
-    fn mem_or_reg_mut(&mut self, addr: u16) -> Result<&mut u16> {
-        self.memory
-            .get_mut(addr as usize)
-            .ok_or(Error::InvalidAddress(addr))
-    }
-
-    fn mem_or_reg(&self, addr: u16) -> Result<u16> {
-        self.memory
-            .get(addr as usize)
-            .copied()
-            .ok_or(Error::InvalidAddress(addr))
-    }
-
     fn reg_mut(&mut self, val: u16) -> Result<&mut u16> {
         if val < FIRST_REGISTER {
             Err(Error::InvalidRegister(val))
