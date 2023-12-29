@@ -96,9 +96,9 @@ impl Vm {
         Ok(())
     }
 
-    pub fn run_commands(
+    pub fn run_commands<'a>(
         &mut self,
-        commands: impl IntoIterator<Item = &'static str>,
+        commands: impl IntoIterator<Item = &'a str>,
         output: &mut impl Write,
     ) -> Result<ExitReason> {
         let input: String = commands
@@ -146,7 +146,7 @@ impl Vm {
                             self.ip -= opcode.num_words();
                             return Ok(ExitReason::NoMoreInput);
                         }
-                        print!("> {line}");
+                        eprint!("> {line}");
                         self.pending_input = line.chars().map(|c| c as u8).rev().collect();
                     }
                     *self.reg_mut(write_to)? = self.pending_input.pop().unwrap() as u16;

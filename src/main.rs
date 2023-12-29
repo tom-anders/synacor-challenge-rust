@@ -1,12 +1,15 @@
 use std::io::stdout;
 
+mod maze;
+mod opcode;
+mod rpg;
+mod vm;
+
 use itertools::Itertools;
+use log::info;
 use vm::Vm;
 
-use crate::vm::ExitReason;
-
-mod opcode;
-mod vm;
+use crate::{maze::Maze, rpg::Rpg, vm::ExitReason};
 
 fn main() -> vm::Result<()> {
     env_logger::init();
@@ -40,7 +43,16 @@ fn main() -> vm::Result<()> {
         ExitReason::NoMoreInput
     );
 
-    vm.run_interactive()?;
+    info!("Start exploring maze...");
+
+    let mut rpg = Rpg::new(&mut vm);
+
+    {
+        let mut maze = Maze::new(&mut rpg);
+        maze.random_moves_until(|room| room.items.first().is_some_and(|item| item == "can"))?;
+    }
+    rpg.take("can")?;
+    rpg.use_("can")?;
 
     Ok(())
 }
