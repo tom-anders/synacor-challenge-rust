@@ -118,6 +118,7 @@ impl Vm {
                     if self.pending_input.is_empty() {
                         let mut line = String::new();
                         input.read_line(&mut line)?;
+                        print!("> {line}");
                         self.pending_input = line.chars().map(|c| c as u8).rev().collect();
                     }
                     *self.reg_mut(write_to)?

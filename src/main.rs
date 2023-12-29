@@ -1,4 +1,4 @@
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 
 use itertools::Itertools;
 use vm::Vm;
@@ -16,8 +16,24 @@ fn main() -> vm::Result<()> {
 
     let mut vm = Vm::new();
     vm.load_program(&challenge)?;
+
+    let input: String = [
+        "go doorway",
+        "go north",
+        "go north",
+        "go bridge",
+        "go continue",
+        "go down",
+        "go east",
+        "take empty lantern",
+        "go west",
+    ]
+    .into_iter()
+    .interleave_shortest(std::iter::repeat("\n"))
+    .collect();
+
     vm.run(
-        &mut BufReader::new(&mut std::io::stdin()),
+        &mut BufReader::new(input.as_bytes()).chain(&mut BufReader::new(&mut std::io::stdin())),
         &mut std::io::stdout(),
     )?;
     Ok(())
