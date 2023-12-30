@@ -60,14 +60,14 @@ fn main() -> vm::Result<()> {
 
     rpg.command(Command::Use("lantern"))?;
 
-    rpg.go(Direction::West.into())?;
-    rpg.go("ladder".to_string().into())?;
-    rpg.go("darkness".to_string().into())?;
-    rpg.go("continue".to_string().into())?;
-    rpg.go(Direction::West.into())?;
-    rpg.go(Direction::West.into())?;
-    rpg.go(Direction::West.into())?;
-    rpg.go(Direction::West.into())?;
+    rpg.go(Direction::West)?;
+    rpg.go("ladder")?;
+    rpg.go("darkness")?;
+    rpg.go("continue")?;
+    rpg.go(Direction::West)?;
+    rpg.go(Direction::West)?;
+    rpg.go(Direction::West)?;
+    rpg.go(Direction::West)?;
 
     vm.run_interactive()?;
 

@@ -13,7 +13,7 @@ impl Maze<'_, '_> {
     pub fn random_moves_until(&mut self, until: impl Fn(&Room) -> bool) -> Result<()> {
         let mut next = Direction::North;
         loop {
-            let room = self.rpg.go(next.into())?;
+            let room = self.rpg.go(next)?;
             log::debug!("At {room:?}...");
 
             if until(&room) {

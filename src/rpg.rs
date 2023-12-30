@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr, io::Write};
+use std::{str::FromStr, io::Write};
 
 use crate::vm::{Result, Vm};
 use itertools::Itertools;
@@ -13,23 +13,21 @@ pub enum Direction {
     West,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, FromStr, derive_more::From)]
-#[display("{0}")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::From, derive_more::Display)]
 pub enum Exit {
+    #[display(fmt = "{_0}")]
     Dir(Direction),
+    #[display(fmt = "{_0}")]
     Other(String),
 }
 
-impl Display for Exit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Exit::Dir(dir) => dir.to_string(),
-                Exit::Other(other) => other.to_string(),
-            }
-        )
+impl<'a> From<&'a str> for Exit {
+    fn from(value: &'a str) -> Self {
+        if let Ok(dir) = Direction::from_str(value) {
+            Self::Dir(dir)
+        } else {
+            Self::Other(value.to_string())
+        }
     }
 }
 
@@ -65,8 +63,9 @@ impl Rpg<'_> {
         Ok(())
     }
 
-    pub fn go(&mut self, exit: Exit) -> Result<Room> {
+    pub fn go(&mut self, exit: impl Into<Exit>) -> Result<Room> {
         let mut output = Vec::new();
+        let exit = exit.into();
         self.vm
             .run_commands([format!("go {exit}").as_str()], &mut output)?;
         std::io::stdout().write_all(&output)?;
@@ -102,7 +101,7 @@ impl Rpg<'_> {
             .iter()
             .filter_map(|s| {
                 s.starts_with("- ")
-                    .then_some(Exit::from_str(&s[2..]).unwrap())
+                    .then_some(Exit::from(&s[2..]))
             })
             .collect();
 
