@@ -9,7 +9,11 @@ use itertools::Itertools;
 use log::info;
 use vm::Vm;
 
-use crate::{maze::Maze, rpg::{Rpg, Command, Direction}, vm::ExitReason};
+use crate::{
+    maze::Maze,
+    rpg::{Command, Direction, Rpg},
+    vm::ExitReason,
+};
 
 fn main() -> vm::Result<()> {
     env_logger::init();
@@ -52,22 +56,40 @@ fn main() -> vm::Result<()> {
         maze.random_moves_until(|room| room.items.first().is_some_and(|item| item == "can"))?;
     }
 
-    rpg.command(Command::Take("can"))?;
-    rpg.command(Command::Look("can"))?;
-    rpg.command(Command::Use("can"))?;
+    use Command::*;
+    use Direction::*;
+    rpg.command(Take("can"))?;
+    rpg.command(Look("can"))?;
+    rpg.command(Use("can"))?;
 
-    rpg.command(Command::Look("lantern"))?;
+    rpg.command(Look("lantern"))?;
 
-    rpg.command(Command::Use("lantern"))?;
+    rpg.command(Use("lantern"))?;
 
-    rpg.go(Direction::West)?;
+    rpg.go(West)?;
     rpg.go("ladder")?;
     rpg.go("darkness")?;
     rpg.go("continue")?;
-    rpg.go(Direction::West)?;
-    rpg.go(Direction::West)?;
-    rpg.go(Direction::West)?;
-    rpg.go(Direction::West)?;
+    rpg.go(West)?;
+    rpg.go(West)?;
+    rpg.go(West)?;
+    rpg.go(West)?;
+    rpg.go(North)?;
+
+    rpg.command(Take("red coin"))?;
+    rpg.go(North)?;
+    rpg.go(East)?;
+    rpg.command(Take("concave coin"))?;
+    rpg.go("down")?;
+    rpg.command(Take("corroded coin"))?;
+    rpg.go("up")?;
+    rpg.go(West)?;
+    rpg.go(West)?;
+    rpg.command(Take("blue coin"))?;
+    rpg.go("up")?;
+    rpg.command(Take("shiny coin"))?;
+    rpg.go("down")?;
+    rpg.go(East)?;
 
     vm.run_interactive()?;
 
