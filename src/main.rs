@@ -15,6 +15,28 @@ use crate::{
     vm::ExitReason,
 };
 
+#[derive(Debug, Clone, Copy, parse_display::Display)]
+#[display(style = "snake_case")]
+enum Coin {
+    Red = 2,
+    Corroded = 3,
+    Shiny = 5,
+    Concave = 7,
+    Blue = 9,
+}
+
+fn solve_coin_puzzle() -> Vec<Coin> {
+    use Coin::*;
+    [Red, Corroded, Shiny, Concave, Blue]
+        .into_iter()
+        .permutations(5)
+        .find(|perm| {
+            let (a, b, c, d, e) = perm.iter().map(|c| *c as u64).collect_tuple().unwrap();
+            a + b * c.pow(2) + d.pow(3) - e == 399
+        })
+        .unwrap()
+}
+
 fn main() -> vm::Result<()> {
     env_logger::init();
 
@@ -90,6 +112,10 @@ fn main() -> vm::Result<()> {
     rpg.command(Take("shiny coin"))?;
     rpg.go("down")?;
     rpg.go(East)?;
+
+    for coin in solve_coin_puzzle() {
+        rpg.command(Use(&format!("{coin} coin")))?;
+    }
 
     vm.run_interactive()?;
 
