@@ -117,6 +117,10 @@ fn main() -> vm::Result<()> {
         rpg.command(Use(&format!("{coin} coin")))?;
     }
 
+    rpg.go(North)?;
+    rpg.command(Take("teleporter"))?;
+    rpg.command(Use("teleporter"))?;
+
     vm.run_interactive()?;
 
     Ok(())
